@@ -263,7 +263,11 @@ static int iceblk_setup(struct iceblk_port *port)
 	port->gd->minors = ICEBLK_MINORS;
 	snprintf(port->gd->disk_name, 32, ICEBLK_NAME);
 	set_capacity(port->gd, nsectors);
-	add_disk(port->gd);
+	err = add_disk(port->gd);
+	if(err) {
+		dev_err(dev, "Could not add disk");
+		goto exit_gendisk;
+	}
 
 	printk(KERN_INFO "disk [%s] of loaded; "
 			"%u sectors, %u tags, %u max request length\n",
@@ -271,7 +275,7 @@ static int iceblk_setup(struct iceblk_port *port)
 
 	return 0;
 
-	blk_cleanup_disk(port->gd);
+	put_disk(port->gd);
 exit_gendisk:
 	blk_mq_free_tag_set(&port->tag_set);
 exit_queue:
@@ -310,7 +314,7 @@ static int iceblk_teardown(struct iceblk_port *port)
 {
 	del_gendisk(port->gd);
 	put_disk(port->gd);
-	blk_cleanup_queue(port->queue);
+	blk_put_queue(port->queue);
 	unregister_blkdev(port->major, ICEBLK_NAME);
 	return 0;
 }
